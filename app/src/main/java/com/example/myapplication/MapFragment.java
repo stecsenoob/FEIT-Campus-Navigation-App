@@ -162,30 +162,47 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
         PlaceEntity e = (PlaceEntity) tag;
 
-        // ✅ per-user favorite (favorites table)
+        // Get username safely
         String username = requireContext()
                 .getSharedPreferences("auth", Context.MODE_PRIVATE)
                 .getString("username", "");
 
-        boolean isFav = AppDatabase.getInstance(requireContext())
-                .favoriteDao()
-                .isFavorite(username, e.id) == 1;
+        // ✅ Run DB query on background thread (prevents crash)
+        Executors.newSingleThreadExecutor().execute(() -> {
+            boolean isFav = false;
 
-        // ✅ 10 arguments (includes id)
-        Place p = new Place(
-                e.id,
-                e.title, e.category, e.description,
-                e.location, e.phone, e.email,
-                e.lat, e.lng,
-                isFav
-        );
+            try {
+                isFav = AppDatabase.getInstance(requireContext())
+                        .favoriteDao()
+                        .isFavorite(username, e.id) == 1;
+            } catch (Exception ex) {
+                // optional: log ex
+            }
 
-        requireActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.frameLayout, PlaceDetailsFragment.newInstance(p))
-                .addToBackStack(null)
-                .commit();
+            boolean finalIsFav = isFav;
+
+            if (!isAdded() || getActivity() == null) return;
+
+            requireActivity().runOnUiThread(() -> {
+                if (!isAdded() || getActivity() == null) return;
+
+                Place p = new Place(
+                        e.id,
+                        e.title, e.category, e.description,
+                        e.location, e.phone, e.email,
+                        e.lat, e.lng,
+                        finalIsFav
+                );
+
+                requireActivity().getSupportFragmentManager()
+                        .beginTransaction()
+                        .replace(R.id.frameLayout, PlaceDetailsFragment.newInstance(p))
+                        .addToBackStack(null)
+                        .commit();
+            });
+        });
     }
+
 
 
     private void requestLocationThenZoom() {

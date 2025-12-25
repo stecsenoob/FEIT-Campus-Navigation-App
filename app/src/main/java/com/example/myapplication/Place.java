@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class Place implements Serializable {
 
+    public final int id;
     public final String title;
     public final String category;
     public final String description;
@@ -13,13 +14,13 @@ public class Place implements Serializable {
     public final double lat;
     public final double lng;
 
-    public boolean isFavorite; // ⭐ KEY
+    public boolean isFavorite; // per user
 
-    public Place(String title, String category, String description,
+    public Place(int id, String title, String category, String description,
                  String location, String phone, String email,
-                 double lat, double lng,
-                 boolean isFavorite) {
+                 double lat, double lng, boolean isFavorite) {
 
+        this.id = id;
         this.title = title;
         this.category = category;
         this.description = description;

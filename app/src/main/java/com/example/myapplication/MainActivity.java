@@ -32,9 +32,18 @@ public class MainActivity extends AppCompatActivity {
             dbConnect db = new dbConnect(MainActivity.this);
 
             if (db.checkLogin(user, pass)) {
+
+                // ✅ SAVE LOGGED-IN USER
+                getSharedPreferences("auth", MODE_PRIVATE)
+                        .edit()
+                        .putString("username", user)
+                        .apply();
+
                 Toast.makeText(MainActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
                 startActivity(new Intent(MainActivity.this, HomeActivity.class));
-            } else {
+                finish();
+            }
+            else {
                 edtPassLog.setError("Invalid username or password");
             }
         });

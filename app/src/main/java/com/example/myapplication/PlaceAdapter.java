@@ -21,6 +21,7 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
         void onPlaceClick(Place place);
     }
 
+    // Fragment will handle SQLite (FavoriteDao)
     public interface OnFavoriteClick {
         void onHeartClick(Place place, boolean newFavState);
     }
@@ -31,7 +32,10 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
     private final OnPlaceClick clickListener;
     private final OnFavoriteClick heartListener;
 
-    public PlaceAdapter(List<Place> data, OnPlaceClick clickListener, OnFavoriteClick heartListener) {
+    public PlaceAdapter(List<Place> data,
+                        OnPlaceClick clickListener,
+                        OnFavoriteClick heartListener) {
+
         if (data != null) {
             allItems.addAll(data);
             shownItems.addAll(data);
@@ -40,9 +44,9 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
         this.heartListener = heartListener;
     }
 
+    // Used by HomeFragment search + filter
     public void applySearchAndCategoryFilter(String query, Set<String> categories) {
         String q = (query == null) ? "" : query.trim().toLowerCase(Locale.ROOT);
-
         Set<String> cats = (categories == null) ? new HashSet<>() : categories;
 
         shownItems.clear();
@@ -71,7 +75,8 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_place, parent, false);
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_place, parent, false);
         return new VH(v);
     }
 
@@ -79,28 +84,43 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Place p = shownItems.get(position);
 
-        if (holder.title != null) holder.title.setText(p.title);
-        if (holder.subtitle != null) holder.subtitle.setText(p.description);
+        if (holder.title != null) {
+            holder.title.setText(p.title);
+        }
 
-        // Row click
+        if (holder.subtitle != null) {
+            holder.subtitle.setText(p.description);
+        }
+
+        // Open details
         holder.itemView.setOnClickListener(v -> {
-            if (clickListener != null) clickListener.onPlaceClick(p);
+            if (clickListener != null) {
+                clickListener.onPlaceClick(p);
+            }
         });
 
-        // Heart (ONLY if it exists in XML)
+        // ❤️ Favorite handling (UI only)
         if (holder.heart != null) {
+
             holder.heart.setImageResource(
-                    p.isFavorite ? R.drawable.favorite_24 : R.drawable.outline_favorite_24
+                    p.isFavorite
+                            ? R.drawable.favorite_24
+                            : R.drawable.outline_favorite_24
             );
 
             holder.heart.setOnClickListener(v -> {
                 boolean newState = !p.isFavorite;
+
+                // update UI state immediately
                 p.isFavorite = newState;
 
                 holder.heart.setImageResource(
-                        newState ? R.drawable.favorite_24 : R.drawable.outline_favorite_24
+                        newState
+                                ? R.drawable.favorite_24
+                                : R.drawable.outline_favorite_24
                 );
 
+                // delegate DB update to Fragment
                 if (heartListener != null) {
                     heartListener.onHeartClick(p, newState);
                 }
@@ -114,14 +134,15 @@ public class PlaceAdapter extends RecyclerView.Adapter<PlaceAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView title, subtitle;
+        TextView title;
+        TextView subtitle;
         ImageView heart;
 
         VH(@NonNull View itemView) {
             super(itemView);
             title = itemView.findViewById(R.id.txtTitle);
-            subtitle = itemView.findViewById(R.id.txtSubtitle); // can be null if not in XML
-            heart = itemView.findViewById(R.id.imgHeart);       // can be null if not in XML
+            subtitle = itemView.findViewById(R.id.txtSubtitle); // optional
+            heart = itemView.findViewById(R.id.imgHeart);       // optional
         }
     }
 }

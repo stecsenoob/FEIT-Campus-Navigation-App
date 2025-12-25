@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,7 +29,6 @@ public class FavoritesFragment extends Fragment {
 
         View v = inflater.inflate(R.layout.fragment_favorites, container, false);
 
-        // ✅ Matches fragment_favorites.xml
         rvFavorites = v.findViewById(R.id.rvFavorites);
         rvFavorites.setLayoutManager(new LinearLayoutManager(requireContext()));
 
@@ -39,53 +39,52 @@ public class FavoritesFragment extends Fragment {
                         .replace(R.id.frameLayout, PlaceDetailsFragment.newInstance(place))
                         .addToBackStack(null)
                         .commit(),
-                (place, newFavState) -> Executors.newSingleThreadExecutor().execute(() ->
-                        AppDatabase.getInstance(requireContext())
-                                .placeDao()
-                                .setFavorite(place.title, newFavState)
-                )
+                (place, newFavState) -> Executors.newSingleThreadExecutor().execute(() -> {
+                    String user = getUsername();
+                    AppDatabase.getInstance(requireContext())
+                            .favoriteDao()
+                            .remove(user, place.id);
+                })
         );
 
         rvFavorites.setAdapter(adapter);
-
         loadFavorites();
 
         return v;
     }
 
     private void loadFavorites() {
-        if (!isAdded()) return;
-
         Executors.newSingleThreadExecutor().execute(() -> {
-            AppDatabase db = AppDatabase.getInstance(requireContext());
-            PlaceDao dao = db.placeDao();
+            String user = getUsername();
 
-            List<PlaceEntity> entities = dao.getFavorites();
+            List<PlaceEntity> entities =
+                    AppDatabase.getInstance(requireContext())
+                            .favoriteDao()
+                            .getFavoritesForUser(user);
 
-            ArrayList<Place> favorites = new ArrayList<>();
+            ArrayList<Place> list = new ArrayList<>();
             for (PlaceEntity e : entities) {
-                favorites.add(new Place(
-                        e.title,
-                        e.category,
-                        e.description,
-                        e.location,
-                        e.phone,
-                        e.email,
-                        e.lat,
-                        e.lng,
-                        e.isFavorite
+                list.add(new Place(
+                        e.id, e.title, e.category, e.description,
+                        e.location, e.phone, e.email,
+                        e.lat, e.lng, true
                 ));
             }
 
-            if (!isAdded() || getActivity() == null) return;
-
-            getActivity().runOnUiThread(() -> adapter.setItems(favorites));
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> adapter.setItems(list));
         });
+    }
+
+    private String getUsername() {
+        return requireContext()
+                .getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .getString("username", "");
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        loadFavorites(); // refresh when returning
+        loadFavorites();
     }
 }

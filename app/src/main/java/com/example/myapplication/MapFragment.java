@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+import android.content.Context;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -161,13 +162,23 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
 
         PlaceEntity e = (PlaceEntity) tag;
 
+        // ✅ per-user favorite (favorites table)
+        String username = requireContext()
+                .getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .getString("username", "");
+
+        boolean isFav = AppDatabase.getInstance(requireContext())
+                .favoriteDao()
+                .isFavorite(username, e.id) == 1;
+
+        // ✅ 10 arguments (includes id)
         Place p = new Place(
+                e.id,
                 e.title, e.category, e.description,
                 e.location, e.phone, e.email,
                 e.lat, e.lng,
-                e.isFavorite
+                isFav
         );
-
 
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()
@@ -175,6 +186,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback {
                 .addToBackStack(null)
                 .commit();
     }
+
 
     private void requestLocationThenZoom() {
         if (!hasLocationPermission()) {

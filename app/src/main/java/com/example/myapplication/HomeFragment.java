@@ -1,6 +1,7 @@
 package com.example.myapplication;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -81,20 +82,32 @@ public class HomeFragment extends Fragment {
         if (!isAdded()) return;
 
         Executors.newSingleThreadExecutor().execute(() -> {
+            String username = getUsername();
             AppDatabase db = AppDatabase.getInstance(requireContext());
 
-            // ✅ Guarantee seed exists BEFORE reading
+            // Keep your seed behavior
             AppDatabase.seedIfEmpty(db);
 
-            List<PlaceEntity> entities = db.placeDao().getAll();
+            PlaceDao placeDao = db.placeDao();
+            FavoriteDao favoriteDao = db.favoriteDao();
+
+            List<PlaceEntity> entities = placeDao.getAll();
 
             ArrayList<Place> data = new ArrayList<>();
             for (PlaceEntity e : entities) {
+                boolean isFav = favoriteDao.isFavorite(username, e.id) == 1;
+
                 data.add(new Place(
-                        e.title, e.category, e.description,
-                        e.location, e.phone, e.email,
-                        e.lat, e.lng,
-                        e.isFavorite
+                        e.id,
+                        e.title,
+                        e.category,
+                        e.description,
+                        e.location,
+                        e.phone,
+                        e.email,
+                        e.lat,
+                        e.lng,
+                        isFav
                 ));
             }
 
@@ -108,17 +121,31 @@ public class HomeFragment extends Fragment {
                                 .replace(R.id.frameLayout, PlaceDetailsFragment.newInstance(place))
                                 .addToBackStack(null)
                                 .commit(),
-                        (place, newFavState) -> Executors.newSingleThreadExecutor().execute(() ->
-                                AppDatabase.getInstance(requireContext())
-                                        .placeDao()
-                                        .setFavorite(place.title, newFavState)
-                        )
+                        (place, newFavState) -> {
+                            // ✅ Per-user favorites in favorites table
+                            Executors.newSingleThreadExecutor().execute(() -> {
+                                String u = getUsername();
+                                FavoriteDao favDao = AppDatabase.getInstance(requireContext()).favoriteDao();
+
+                                if (newFavState) {
+                                    favDao.add(new FavoriteEntity(u, place.id));
+                                } else {
+                                    favDao.remove(u, place.id);
+                                }
+                            });
+                        }
                 );
 
                 rvPlaces.setAdapter(adapter);
                 applyFilters();
             });
         });
+    }
+
+    private String getUsername() {
+        return requireContext()
+                .getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .getString("username", "");
     }
 
     private void showFilterDialog() {
@@ -150,4 +177,6 @@ public class HomeFragment extends Fragment {
         if (adapter == null) return;
         adapter.applySearchAndCategoryFilter(currentQuery, selectedCategories);
     }
+
+
 }
